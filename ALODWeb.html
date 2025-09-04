@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGGG Anti-Stylometry Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        /* Control panel with transparency and blur (frosted glass effect) */
+        .control-panel {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0, 20, 40, 0.6);
+            border-top: 2px solid #00ff00;
+            border-radius: 10px 10px 0 0;
+            padding: 20px;
+            backdrop-filter: blur(1.5px);
+            -webkit-backdrop-filter: blur(1.5px);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        h1 {
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #00ffff;
+        }
+        textarea, input[type="range"] {
+            width: 100%;
+            background: rgba(0, 50, 100, 0.5);
+            border: 1px solid #00ffff;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .intensity-display {
+            color: #ff00ff;
+            text-align: center;
+            margin-top: 5px;
+        }
+        button {
+            background: linear-gradient(45deg, #ff0066, #6600ff);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+        }
+        .output-section {
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .word-analysis {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 30, 60, 0.7);
+            border-radius: 10px;
+            border: 1px solid #0099ff;
+        }
+        .word-item {
+            display: inline-block;
+            margin: 2px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .word-red {
+            background: rgba(255, 0, 0, 0.3);
+            box-shadow: 0 0 10px #ff0000;
+            animation: pulse-red 2s infinite;
+        }
+        .word-yellow {
+            background: rgba(255, 255, 0, 0.3);
+            box-shadow: 0 0 10px #ffff00;
+            animation: pulse-yellow 2s infinite;
+        }
+        .word-green {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 10px #00ff00;
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 10px #ff0000; }
+            50% { box-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000; }
+        }
+        @keyframes pulse-yellow {
+            0%, 100% { box-shadow: 0 0 10px #ffff00; }
+            50% { box-shadow: 0 0 20px #ffff00, 0 0 30px #ffff00; }
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 10px #00ff00; }
+            50% { box-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00; }
+        }
+        .signoff {
+            color: #ff00ff;
+            font-style: italic;
+            margin-top: 10px;
+            text-align: right;
+        }
+        .tally {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .laser-beam {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, #ff0000, transparent);
+            animation: laser-pulse 0.5s ease-in-out;
+            pointer-events: none;
+        }
+        @keyframes laser-pulse {
+            0% { opacity: 0; width: 0; }
+            50% { opacity: 1; width: 100%; }
+            100% { opacity: 0; width: 0; }
+        }
+        .layers label {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .layers {
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div class="control-panel">
+        <h1>🛸 THE BG GREMLIN GROUP ANTI-STYLOMETRY TOOL 🛸</h1>
+        <div class="input-section">
+            <label for="input-text">Enter Text:</label>
+            <textarea id="input-text" placeholder="Type your message here..."></textarea>
+        </div>
+        <div class="input-section">
+            <label for="intensity">Obfuscation Intensity:</label>
+            <input type="range" id="intensity" min="1" max="100" value="50">
+            <div class="intensity-display" id="intensity-display">50%</div>
+        </div>
+        <div class="input-section">
+            <label>Obfuscation Styles:</label>
+            <div class="layers">
+                <label><input type="checkbox" id="layer-quotes" checked> Quote nouns/pronouns</label>
+                <label><input type="checkbox" id="layer-punct" checked> Punctuation noise</label>
+                <label><input type="checkbox" id="layer-case" checked> Pronoun capitalization</label>
+                <label><input type="checkbox" id="layer-subst" checked> Word substitution</label>
+                <label><input type="checkbox" id="layer-emoji" checked> Emoji injection</label>
+                <label><input type="checkbox" id="layer-metadata" checked> Fake metadata</label>
+                <label><input type="checkbox" id="layer-shuffle" checked> Syntax shuffle</label>
+            </div>
+        </div>
+        <div class="input-section">
+            <label>Theme Styles:</label>
+            <div class="layers">
+                <label><input type="checkbox" id="theme-east"> East Coast</label>
+                <label><input type="checkbox" id="theme-west"> West Coast</label>
+                <label><input type="checkbox" id="theme-tech"> Tech</label>
+                <label><input type="checkbox" id="theme-goth"> Goth</label>
+                <label><input type="checkbox" id="theme-conspiracy"> Conspiracy</label>
+                <label><input type="checkbox" id="theme-esoteric"> Esoteric</label>
+                <label><input type="checkbox" id="theme-intellectual"> Intellectual</label>
+            </div>
+        </div>
+        <div class="input-section">
+            <label for="transparency">Interface Transparency:</label>
+            <input type="range" id="transparency" min="0" max="100" value="40">
+            <div class="intensity-display" id="transparency-display">40%</div>
+        </div>
+        <div class="input-section">
+            <label for="blur">Background Blur:</label>
+            <input type="range" id="blur" min="0" max="10" step="0.1" value="1.5">
+            <div class="intensity-display" id="blur-display">1.5px</div>
+        </div>
+        <div>
+            <button onclick="obfuscateText()">🔒 Obfuscate</button>
+            <button onclick="analyzeText()">📊 Analyze Words</button>
+            <button onclick="decodeText()">🔓 Decode</button>
+            <button onclick="clearAll()">🗑️ Clear</button>
+        </div>
+        <div class="output-section" id="output-section">
+            <label>Output:</label>
+            <div id="output-text"></div>
+            <div class="signoff" id="signoff"></div>
+        </div>
+        <div class="word-analysis" id="word-analysis">
+            <label>Word Frequency Analysis:</label>
+            <div id="word-cloud"></div>
+            <div class="tally" id="word-tally"></div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js Scene Setup
+        let scene, camera, renderer;
+        let earth, ufos = [], lasers = [];
+        let earthRotation = 0;
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            // Add stars
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+            const starsVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                starsVertices.push((Math.random() - 0.5) * 2000);
+            }
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+            // Create Earth
+            const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+            const earthTexture = new THREE.TextureLoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+            const earthMaterial = new THREE.MeshPhongMaterial({ 
+                map: earthTexture,
+                emissive: 0x112244,
+                emissiveIntensity: 0.1
+            });
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            scene.add(earth);
+            // Create UFOs
+            for (let i = 0; i < 5; i++) {
+                const ufoGeometry = new THREE.CylinderGeometry(0.5, 1, 0.3, 8);
+                const ufoMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x00ff00,
+                    emissive: 0x00ff00,
+                    emissiveIntensity: 0.5
+                });
+                const ufo = new THREE.Mesh(ufoGeometry, ufoMaterial);
+                ufo.position.set(
+                    (Math.random() - 0.5) * 30,
+                    Math.random() * 10 + 5,
+                    (Math.random() - 0.5) * 30
+                );
+                ufo.userData = {
+                    speed: Math.random() * 0.02 + 0.01,
+                    direction: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.1,
+                        0,
+                        (Math.random() - 0.5) * 0.1
+                    )
+                };
+                ufos.push(ufo);
+                scene.add(ufo);
+            }
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 3, 5);
+            scene.add(directionalLight);
+            camera.position.z = 20;
+            animate();
+        }
+        function animate() {
+            requestAnimationFrame(animate);
+            // Rotate Earth
+            earthRotation += 0.001;
+            earth.rotation.y = earthRotation;
+            // Animate UFOs
+            ufos.forEach((ufo, index) => {
+                ufo.position.add(ufo.userData.direction);
+                // Boundary check
+                if (Math.abs(ufo.position.x) > 15) ufo.userData.direction.x *= -1;
+                if (Math.abs(ufo.position.z) > 15) ufo.userData.direction.z *= -1;
+                // Create lasers occasionally - sometimes at other UFOs, sometimes at Earth
+                if (Math.random() < 0.01) {
+                    if (Math.random() > 0.5) {
+                        // Fire at another UFO
+                        createLaser(ufo.position, ufos[(index + 1) % ufos.length].position);
+                    } else {
+                        // Fire at Earth
+                        const targetX = (Math.random() - 0.5) * 10;
+                        const targetZ = (Math.random() - 0.5) * 10;
+                        const targetPosition = new THREE.Vector3(targetX, 0, targetZ);
+                        targetPosition.normalize().multiplyScalar(earth.geometry.parameters.radius + 0.1);
+                        createLaser(ufo.position, targetPosition);
+                    }
+                }
+            });
+            // Animate lasers
+            lasers.forEach((laser, index) => {
+                laser.material.opacity -= 0.02;
+                if (laser.material.opacity <= 0) {
+                    scene.remove(laser);
+                    lasers.splice(index, 1);
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        function createLaser(start, end) {
+            const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+            const material = new THREE.LineBasicMaterial({ 
+                color: Math.random() > 0.5 ? 0x00ff00 : 0xff0000,
+                linewidth: 3,
+                transparent: true,
+                opacity: 1
+            });
+            const laser = new THREE.Line(geometry, material);
+            scene.add(laser);
+            lasers.push(laser);
+        }
+        // Anti-Stylometry Functions
+        const commonWords = {
+            'the': ['7h3', '7he', 'eht', 'hte', 'te', 'th', 'th3', 'thee', 'thethe', 'thethethe', 'thethethethe', 'thethethethethe', 'thethethethethethe', 'thethethethethethethe', 'thethethethethethethethe', 'thethethethethethethethethe', 'thethethethethethethethethethe', 'thethethethethethethethethethethe', 'thhe', 'tthe', 'ze'],
+            'and': ['4nd', 'aand', 'andand', 'andandand', 'andandandand', 'andandandandand', 'andandandandandand', 'andandandandandandand', 'andandandandandandandand', 'andandandandandandandandand', 'andandandandandandandandandand', 'andandandandandandandandandandand', 'andandandandandandandandandandandand', 'andandandandandandandandandandandandand', 'andandandandandandandandandandandandandand', 'andd', 'annd', 'dna', 'n', 'nad', 'nd'],
+            'is': ['15', '1s', 'i5', 'iis', 'iss', 'iz', 'si'],
+            'it': ['!t', '17', '1t', 'i+', 'i7', 'iit', 'itt', 'ti'],
+            'to': ['2', '70', '7o', 'ot', 't0', 'too', 'tto', 'tototo', 'totototo', 'tototototo', 'totototototo', 'tototototototo', 'totototototototo', 'tototototototototo', 'totototototototototo', 'tototototototototototo', 'totototototototototototo', 'tototototototototototototo'],
+            'of': ['0f', 'fo', 'off', 'oof', 'ofof', 'ofof', 'ofofof', 'ofofofof', 'ofofofofof', 'ofofofofofof', 'ov', 'ffof', 'foof', 'ooff', 'f0', '0ff', 'f0f', 'of0'],
+            'a': ['4', '@', 'aa', 'aaa', 'aaaa', 'aaaaa', 'aaaaaa', 'aaaaaaa', 'aaaaaaaa', 'aaaaaaaaa', 'aaaaaaaaaa', 'aaaaaaaaaaa', 'aaaaaaaaaaaa', 'aaaaaaaaaaaaa', 'aaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaa', 'uh'],
+            'in': ['!n', '1n', 'iin', 'inn', 'ni'],
+            'that': ['7h4t', '7ha7', '7hat', 'dat', 'htat', 'taht', 'tat', 'th47', 'th4t', 'tha', 'tha7', 'thaat', 'thatt', 'thatthat', 'thatthatthat', 'thatthatthatthat', 'thatthatthatthatthat', 'thatthatthatthatthatthat', 'thhat', 'tthat'],
+            'have': ['ahve', 'ave', 'evah', 'h4v3', 'h4ve', 'h@ve', 'haave', 'hae', 'hav', 'hav3', 'haz', 'havve', 'hhave', 'haave', 'havee', 'havehave', 'havehavehave', 'havehavehavehave', 'haeve', 'hev'],
+            'i': ['!', '1', 'ii', 'iii', 'iiii', 'iiiii', 'iiiiii', 'iiiiiii', 'iiiiiiii', 'iiiiiiiii', 'iiiiiiiiii', 'iiiiiiiiiii', 'iiiiiiiiiiii', 'iiiiiiiiiiiii', 'iiiiiiiiiiiiii', 'iiiiiiiiiiiiiii', 'iiiiiiiiiiiiiiii', 'iiiiiiiiiiiiiiiii', 'iiiiiiiiiiiiiiiiii', 'me'],
+            'for': ['f0r', 'ffor', 'fo', 'foor', 'forr', 'fr', 'ofr', 'rof', '4', '4for', 'fo4', 'f4r', 'fur', 'forfor', 'forforfor', 'forforforfor', 'ffoor', 'foor', 'f0or', 'frr'],
+            'not': ['n07', 'n0t', 'nnot', 'no', 'no7', 'noot', 'nott', 'nt', 'ont', 'ot', 'notnot', 'notnotnot', 'notnotnotnot', 'notnotnotnotnot', 'notnotnotnotnotnot', 'n0ot', 'nn0t', 'no0t', 'n0tt', 'ton'],
+            'on': ['0n', 'n', 'o', 'onn', 'oon', 'onon', 'ononon', 'onononon', 'ononononon', 'onno', '0nn', '0on', 'ooon', 'no', 'ono', 'o0n', '0n0', 'on0', '0on0', '0onn'],
+            'with': ['htiw', 'ith', 'iwth', 'w17h', 'w1th', 'wi7h', 'wif', 'wih', 'wiith', 'wit', 'withh', 'witth', 'wwith', 'withwith', 'withwithwith', 'withwithwithwith', 'withwithwithwithwith', 'withwithwithwithwithwith', 'wiht', 'whit'],
+            'he': ['eh', 'h3', 'hee', 'hhe', 'hehe', 'heh', 'ehh', 'hh', 'e', 'hhhe', 'heee', 'hehh', 'him'],
+            'as': ['45', '4s', '@s', 'a5', 'aas', 'ass', 'az', 'sa', 's', 'azz', 'aas', 'asss', 'aazz', 'asz', 'aszs', 'azzs', 'aasz', 'saz', 'zas', 'zza'],
+            'you': ['ou', 'oyu', 'u', 'uoy', 'y0u', 'yoou', 'youu', 'yyou', 'yu', 'youyou', 'youyouyou', 'youyouyouyou', 'youyouyouyouyou', 'youyouyouyouyouyou', 'youyouyouyouyouyouyou', 'youyouyouyouyouyouyouyou', 'youyouyouyouyouyouyouyouyou', 'youyouyouyouyouyouyouyouyouyou', 'youyouyouyouyouyouyouyouyouyouyou', 'youyouyouyouyouyouyouyouyouyouyouyou'],
+            'do': ['d0', 'ddo', 'doo', 'od', 'd0o', 'do0', 'dodo', 'ddoo', 'dooo', 'dooo', 'dooo', 'dodo', 'ood', 'odo', 'oodo', 'ddoo', 'dod', 'oood', 'dooo', 'doo'],
+            'at': ['47', '4t', '@t', 'a+', 'a7', 'aat', 'att', 'ta', 't', 'atat', 'atatat', 'atatt', 'attat', 'aatt', 'aatat', 'attt', 'aattt', 'tt', 'tat', 'tta'],
+            'this': ['+his', '7h1s', '7hi5', '7his', 'th!s', 'th15', 'th1s', 'thhis', 'tht', 'tthis', 'thiss', 'thiis', 'tihs', 'htis', 'siht', 'tsih', 'hist', 'itsh', 'shit', 'dis'],
+            'but': ['8u7', '8ut', 'bbut', 'bt', 'bu', 'bu+', 'bu7', 'butt', 'buut', 'tub', 'butbut', 'butbutbut', 'buttbutt', 'bbutt', 'buttt', 'bbt', 'uut', 'buu', 'ubb', 'b ut'],
+            'his': ['h!s', 'h15', 'h1s', 'hhis', 'hi5', 'hiis', 'hiss', 'hiz', 'hs', 'hisss', 'hiis', 'hiss', 'hiss', 'ihs', 'shi', 'ihss', 'hhiss', 'hissh', 'himz', 'hisz'],
+            'by': ['8y', 'b', 'bby', 'byy', 'yb', 'bye'],
+            'from': ['ffrom', 'fom', 'fr0m', 'frm', 'fro', 'fromm', 'froom', 'frrom', 'rfom', 'morf', 'fromfrom', 'fromfromfrom', 'fromfromfromfrom', 'frrm', 'fro0m', 'fr0om', 'fr0m0', 'ffrm', 'fomm', 'frooom'],
+            'they': ['7h3y', '7hey', 'htey', 'tey', 'th3y', 'theey', 'theyy', 'thhey', 'tthey', 'yeht', 'theythey', 'theytheythey', 'theytheytheythey', 'thhey', 'theyyy', 'thay', 'hteyy', 'th3yy', 'd3m', 'dem'],
+            'we': ['ew', 'w3', 'wee', 'wwe', 'wewe', 'wewewe', 'wewewewe', 'wewewewewe', 'wewewewewewe', 'wwe', 'wwwe', 'eew', 'eww', 'wew', 'ewe', 'w', 'weee', 'ee', 'ue', 'us'],
+            'say': ['54y', '5ay', 'asy', 'ay', 's4y', 's@y', 'sa', 'saay', 'sayy', 'ssay', 'sez', 'sayz', 'saey', 'zay', 'sya', 'ys', 'syy', 'sae', 'sazy', 'ssay'],
+            'her': ['ehr', 'h3r', 'heer', 'herr', 'hher', 'hr', 'reh', 'herrr', 'hehr', 'herher', 'herherher', 'herherherher', 'herrher', 'herh', 'hherr', 'rhe', 'he r', 'hehr', 'herh', 'herrh'],
+            'she': ['5h3', '5he', 'ehs', 'hse', 'se', 'sh3', 'shee', 'shhe', 'sshe', 'zhe', 'her'],
+            'or': ['0r', 'oor', 'orr', 'ro', 'r0', 'oror', 'ororor', 'ooror', 'orrr', 'orror', 'orr0', '0rr', '0or', 'or0', '0ror', 'ror', 'orr0r', 'or0r', 'o0r', 'or0r0'],
+            'an': ['4n', '@n', 'aan', 'ann', 'na', 'n', 'an n', 'aann', 'annn', 'anann', 'anna', 'nn', 'annnn', 'aanan', 'anana', 'anna', 'an4', '4an', 'a4n', 'na4'],
+            'will': ['iwll', 'lliw', 'w11l', 'w1l1', 'w1ll', 'wi11', 'wi1l', 'wi7l', 'wiill', 'wil', 'wil1', 'wil7', 'willl', 'wll', 'wwill', 'willwill', 'willwillwill', 'lliw', 'iwill', 'wll'],
+            'my': ['meh', 'mmy', 'myy', 'ym', 'mymy', 'myymy', 'mymymy', 'mymymy', 'mmmy', 'myyy', 'my my', 'my_my', 'mymy', 'myyy', 'myyyy', 'myyyyy', 'myyyyyy', 'yym', 'my m', 'myyy'],
+            'one': ['0n3', '0ne', '1', 'eno', 'ne', 'noe', 'oe', 'on3', 'onee', 'onne', 'oone', 'oneone', 'oneoneone', 'oneoneoneone', 'oneoneoneoneone', 'oneoneoneoneoneone', 'oneoneoneoneoneoneone', 'on e', 'on e', 'oen'],
+            'all': ['41l', '4l1', '4ll', 'a11', 'a1l', 'a7l', 'aall', 'al', 'al1', 'al7', 'allall', 'allallall', 'allallallall', 'allallallallall', 'allallallallallall', 'allallallallallallall', 'alll', 'awl', 'lal', 'll'],
+            'would': ['dluow', 'ould', 'owuld', 'w0u1d', 'w0uld', 'wold', 'woould', 'wou1d', 'wou7d', 'woud', 'wud', 'wud', 'wwould', 'wouldwould', 'wouldwouldwould', 'wouuld', 'wuold', 'woulld', 'wouldd', 'wuld'],
+            'there': ['7h3re', '7her3', '7here', 'der', 'ereht', 'here', 'htere', 'tere', 'th3r3', 'th3re', 'thee', 'theere', 'ther', 'ther3', 'theree', 'therethere', 'theretherethere', 'therre', 'thhere', 'thre', 'tthere']
+        };
+        const signoffs = [
+            "~Peace", "~Be well", "~in cheerful regard", "~Stay cosmic", "~Vibe on",
+            "~Keep it surreal", "~May the force be with you", "~Live long and prosper",
+            "~Namaste", "~Later gator", "~In a while crocodile", "~Stay frosty",
+            "~Keep it real", "~Much love", "~Catch you on the flip side"
+        ];
+        const synonyms = {
+            'bad': ['terrible', 'awful', 'poor', 'inferior', 'unsatisfactory', 'dreadful', 'atrocious', 'appalling', 'subpar', 'horrible'],
+            'beautiful': ['pretty', 'lovely', 'attractive', 'gorgeous', 'stunning', 'breathtaking', 'picturesque', 'pulchritudinous', 'radiant', 'beauteous'],
+            'big': ['large', 'huge', 'gigantic', 'massive', 'colossal', 'immense', 'vast', 'enormous', 'monumental', 'mammoth'],
+            'child': ['kid', 'youngster', 'youth', 'minor', 'juvenile', 'toddler', 'tyke', 'offspring', 'whippersnapper', 'urchin'],
+            'family': ['household', 'clan', 'kin', 'relatives', 'kindred', 'tribe', 'folk', 'brood', 'fam', 'kinfolk'],
+            'fast': ['quick', 'speedy', 'rapid', 'swift', 'brisk', 'nimble', 'expeditious', 'fleet', 'hasty', 'swift-moving'],
+            'good': ['great', 'excellent', 'superb', 'fine', 'splendid', 'favorable', 'positive', 'virtuous', 'satisfactory', 'awesome', 'fantastic', 'terrific'],
+            'happy': ['joyful', 'cheerful', 'merry', 'gleeful', 'content', 'pleased', 'thrilled', 'delighted', 'elated', 'glad'],
+            'hello': ['hi', 'hey', 'greetings', 'salutations', 'howdy', 'yo', 'hiya', 'sup'],
+            'important': ['significant', 'crucial', 'vital', 'essential', 'critical', 'paramount', 'major', 'key', 'principal', 'indispensable'],
+            'make': ['create', 'produce', 'construct', 'fabricate', 'generate', 'forge', 'manufacture', 'build', 'formulate', 'devise'],
+            'people': ['individuals', 'persons', 'folks', 'humans', 'mortals', 'souls', 'crowd', 'public', 'masses', 'society', 'citizens'],
+            'sad': ['unhappy', 'sorrowful', 'miserable', 'downcast', 'melancholy', 'gloomy', 'dejected', 'downhearted', 'morose', 'blue'],
+            'slow': ['sluggish', 'unhurried', 'lethargic', 'gradual', 'deliberate', 'lagging', 'plodding', 'torpid', 'slothful', 'dilatory'],
+            'small': ['tiny', 'miniature', 'little', 'compact', 'diminutive', 'petite', 'minute', 'teeny', 'undersized', 'puny'],
+            'smart': ['intelligent', 'clever', 'bright', 'brilliant', 'wise', 'brainy', 'astute', 'savvy', 'keen', 'erudite', 'sharp'],
+            'stupid': ['dumb', 'foolish', 'idiotic', 'silly', 'brainless', 'mindless', 'unintelligent', 'dimwitted', 'daft', 'ignorant'],
+            'think': ['ponder', 'reflect', 'consider', 'contemplate', 'deliberate', 'cogitate', 'ruminate', 'mull', 'speculate', 'meditate'],
+            'time': ['moment', 'period', 'era', 'epoch', 'interval', 'duration', 'span', 'juncture', 'while', 'phase'],
+            'ugly': ['unattractive', 'hideous', 'unsightly', 'plain', 'homely', 'ghastly', 'grotesque', 'repulsive', 'monstrous', 'repugnant'],
+            'world': ['earth', 'globe', 'planet', 'universe', 'realm', 'domain', 'cosmos', 'macrocosm', 'terra', 'gaia']
+        };
+        const emojis = ["😂", "😅", "🤔", "🚀", "👽", "✨", "📢", "😎", "🤖", "👾", "💥", "🔮", "🕵️", "👻", "🤡", "🎉", "🤷", "😈", "🌚", "🚨", "🔥", "😜"];
+        // Theme substitution dictionaries
+        const themeSubstitutions = {
+            east: {
+                "very": ["mad"],
+                "friend": ["homie", "bro", "fam"],
+                "police": ["popo"],
+                "money": ["bread", "dough", "loot"],
+                "crazy": ["buggin", "wildin"],
+                "girl": ["shorty"],
+                "cool": ["ill", "fly"],
+                "good": ["dope"]
+            },
+            west: {
+                "very": ["hella"],
+                "friend": ["dude", "bro"],
+                "cool": ["rad", "gnarly"],
+                "excited": ["stoked"],
+                "relax": ["chill"],
+                "yes": ["totally"],
+                "no": ["nah"],
+                "man": ["dude"],
+                "guys": ["dudes"]
+            },
+            tech: {
+                "people": ["users", "customers", "clients"],
+                "money": ["funding", "capital"],
+                "problem": ["bug", "issue"],
+                "idea": ["concept", "brainchild"],
+                "make": ["develop", "engineer", "implement"],
+                "fast": ["efficient", "scalable"],
+                "improve": ["optimize", "refactor"],
+                "analysis": ["analytics"],
+                "secret": ["encrypted"],
+                "future": ["roadmap"]
+            },
+            goth: {
+                "love": ["despair", "misery"],
+                "life": ["void", "abyss"],
+                "happy": ["morose", "bleak"],
+                "friend": ["fiend", "phantom"],
+                "music": ["dirge", "requiem"]
+            },
+            conspiracy: {
+                "government": ["Illuminati", "deepstate"],
+                "people": ["sheeple"],
+                "lies": ["coverup"],
+                "media": ["MSM"],
+                "alien": ["ET"],
+                "science": ["pseudoscience"],
+                "secret": ["classified"],
+                "leader": ["puppet"],
+                "truth": ["TRUTH"]
+            },
+            esoteric: {
+                "soul": ["spirit", "essence"],
+                "mind": ["consciousness"],
+                "universe": ["cosmos"],
+                "dream": ["vision"],
+                "magic": ["mysticism", "arcana"],
+                "energy": ["chi", "prana"],
+                "life": ["existence"],
+                "death": ["transcendence"],
+                "light": ["luminescence"],
+                "dark": ["shadow"]
+            },
+            intellectual: {
+                "think": ["cogitate", "postulate"],
+                "idea": ["conceptualization", "notion"],
+                "important": ["significant", "consequential"],
+                "good": ["beneficial", "advantageous"],
+                "bad": ["detrimental", "malignant"],
+                "smart": ["perspicacious", "sagacious"],
+                "book": ["tome", "volume"],
+                "confusing": ["enigmatic", "convoluted"],
+                "strange": ["peculiar", "atypical"],
+                "use": ["utilize"]
+            }
+        };
+        // Get a random substitution from a dictionary list, preserving capitalization
+        function getRandomObfuscation(word, dict) {
+            const subs = dict[word.toLowerCase()];
+            if (!subs || subs.length === 0) return word;
+            let replacement = subs[Math.floor(Math.random() * subs.length)];
+            // Preserve capitalization of the original word
+            if (word.charAt(0) === word.charAt(0).toUpperCase()) {
+                replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
+            }
+            return replacement;
+        }
+        function getNounsAndPronouns(text) {
+            const words = text.split(/\s+/);
+            const nounsAndPronouns = [];
+            const pronouns = ['i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+            words.forEach(word => {
+                const clean = word.toLowerCase().replace(/[^\w]/g, '');
+                if (pronouns.includes(clean) || word.match(/^[A-Z][a-z]+$/)) {
+                    nounsAndPronouns.push(word);
+                }
+            });
+            return nounsAndPronouns;
+        }
+        function obfuscateText() {
+            const text = document.getElementById('input-text').value;
+            const intensity = Number(document.getElementById('intensity').value);
+            if (!text.trim()) {
+                alert('Please enter some text to obfuscate!');
+                return;
+            }
+            const useQuotes = document.getElementById('layer-quotes').checked;
+            const usePunct = document.getElementById('layer-punct').checked;
+            const useCase = document.getElementById('layer-case').checked;
+            const useSubst = document.getElementById('layer-subst').checked;
+            const useEmoji = document.getElementById('layer-emoji').checked;
+            const useMetadata = document.getElementById('layer-metadata').checked;
+            const useShuffle = document.getElementById('layer-shuffle').checked;
+            let obfuscated = text;
+            // Add quotes around nouns and pronouns
+            if (useQuotes) {
+                const np = getNounsAndPronouns(text);
+                np.forEach(word => {
+                    if (Math.random() * 100 < intensity) {
+                        obfuscated = obfuscated.replace(new RegExp(`\\b${word}\\b`, 'g'), `"${word}"`);
+                    }
+                });
+            }
+            // Add excessive punctuation
+            if (usePunct) {
+                const punctuations = ['!', '!!', '!!!', '...', '?!', '!?', '??'];
+                obfuscated = obfuscated.replace(/[.!?]/g, (match) => {
+                    return Math.random() * 100 < intensity ? punctuations[Math.floor(Math.random() * punctuations.length)] : match;
+                });
+            }
+            // Capitalize beginning letters and all pronouns
+            if (useCase) {
+                obfuscated = obfuscated.split(' ').map(word => {
+                    if (word.length > 0 && Math.random() * 100 < intensity) {
+                        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                    }
+                    return word;
+                }).join(' ');
+                const pronouns = ['i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+                obfuscated = obfuscated.split(' ').map(word => {
+                    const clean = word.toLowerCase().replace(/[^\w]/g, '');
+                    if (pronouns.includes(clean) && Math.random() * 100 < intensity) {
+                        return word.toUpperCase();
+                    }
+                    return word;
+                }).join(' ');
+            }
+            // Theme style substitutions
+            for (let [theme, mapping] of Object.entries(themeSubstitutions)) {
+                if (document.getElementById(`theme-${theme}`).checked) {
+                    for (let [orig, subs] of Object.entries(mapping)) {
+                        if (Math.random() * 100 < intensity) {
+                            obfuscated = obfuscated.replace(new RegExp(`\\b${orig}\\b`, 'gi'), () => getRandomObfuscation(orig, mapping));
+                        }
+                    }
+                }
+            }
+            // Substitute common words and synonyms
+            if (useSubst) {
+                Object.keys(commonWords).forEach(word => {
+                    if (Math.random() * 100 < intensity) {
+                        obfuscated = obfuscated.replace(new RegExp(`\\b${word}\\b`, 'gi'), () => getRandomObfuscation(word, commonWords));
+                    }
+                });
+                Object.keys(synonyms).forEach(word => {
+                    if (Math.random() * 100 < intensity) {
+                        obfuscated = obfuscated.replace(new RegExp(`\\b${word}\\b`, 'gi'), () => getRandomObfuscation(word, synonyms));
+                    }
+                });
+            }
+            // Syntax shuffle
+            if (useShuffle) {
+                let sentences = obfuscated.split('.');
+                const endsWithDot = obfuscated.trim().endsWith('.');
+                if (endsWithDot) sentences.pop();
+                sentences = sentences.map(sentence => {
+                    sentence = sentence.trim();
+                    if (!sentence) return sentence;
+                    const lowerFirst = sentence.split(/\s+/)[0].toLowerCase();
+                    const subs = ["because", "although", "if", "when", "while", "since", "though", "as"];
+                    if (subs.includes(lowerFirst) && sentence.includes(',')) {
+                        const commaIndex = sentence.indexOf(',');
+                        if (commaIndex !== -1) {
+                            const firstClause = sentence.substring(0, commaIndex).trim();
+                            const secondClause = sentence.substring(commaIndex + 1).trim();
+                            if (firstClause && secondClause) {
+                                const firstClauseLowered = firstClause.charAt(0).toLowerCase() + firstClause.slice(1);
+                                const secondClauseCapitalized = secondClause.charAt(0).toUpperCase() + secondClause.slice(1);
+                                sentence = secondClauseCapitalized + ', ' + firstClauseLowered;
+                            }
+                        }
+                    }
+                    return sentence;
+                });
+                obfuscated = sentences.join('. ') + (endsWithDot ? '.' : '');
+            }
+            // Emoji injection
+            if (useEmoji) {
+                obfuscated = obfuscated.replace(/([.!?]+)(\s|$)/g, (match, puncts, sep) => {
+                    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    return Math.random() * 100 < intensity ? puncts + ' ' + emoji + (sep || '') : match;
+                });
+            }
+            // Fake metadata
+            if (useMetadata) {
+                if (Math.random() * 100 < intensity) {
+                    const metaTags = ["#nofilter", "#anonymous", "#obfuscation", "#UFOsighting", "#mystery", "#enigma", "#AIwrites"];
+                    const metaAuthors = ["Author: anon", "Author: unknown", "By John Doe", "By Jane Doe", "Sent from my iPhone", "From: Classified", "Author: Ghostwriter"];
+                    const tagCount = Math.floor(Math.random() * 2) + 1;
+                    const tags = [];
+                    for (let i = 0; i < tagCount; i++) {
+                        tags.push(metaTags[Math.floor(Math.random() * metaTags.length)]);
+                    }
+                    const authorInfo = metaAuthors[Math.floor(Math.random() * metaAuthors.length)];
+                    obfuscated += " " + tags.join(' ') + " " + authorInfo;
+                }
+            }
+            // Add random signoff
+            const signoff = signoffs[Math.floor(Math.random() * signoffs.length)];
+            document.getElementById('output-text').textContent = obfuscated;
+            document.getElementById('signoff').textContent = signoff;
+        }
+        function analyzeText() {
+            const text = document.getElementById('input-text').value;
+            if (!text.trim()) {
+                alert('Please enter some text to analyze!');
+                return;
+            }
+            const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const wordCount = {};
+            words.forEach(word => {
+                const clean = word.replace(/[^\w]/g, '');
+                if (clean) {
+                    wordCount[clean] = (wordCount[clean] || 0) + 1;
+                }
+            });
+            const sortedWords = Object.entries(wordCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20);
+            const maxCount = sortedWords[0]?.[1] || 1;
+            let wordCloudHTML = '';
+            let tallyHTML = '<strong>Word Tally:</strong><br>';
+            sortedWords.forEach(([word, count]) => {
+                const percentage = count / maxCount;
+                let colorClass = 'word-green';
+                if (percentage > 0.7) colorClass = 'word-red';
+                else if (percentage > 0.3) colorClass = 'word-yellow';
+                wordCloudHTML += `<span class="word-item ${colorClass}" onclick="suggestWord('${word}')">${word}</span>`;
+                tallyHTML += `${word}: ${count}<br>`;
+            });
+            document.getElementById('word-cloud').innerHTML = wordCloudHTML;
+            document.getElementById('word-tally').innerHTML = tallyHTML;
+        }
+        function suggestWord(word) {
+            const lower = word.toLowerCase();
+            if (synonyms[lower]) {
+                alert(`Alternatives for "${word}":\n${synonyms[lower].join(', ')}`);
+            } else {
+                const alt1 = word + 'o';
+                const alt2 = word.split('').map(c => c + c).join('');
+                const alt3 = word.split('').reverse().join('');
+                alert(`Alternatives for "${word}":\n${alt1}, ${alt2}, ${alt3}`);
+            }
+        }
+        function decodeText() {
+            const text = document.getElementById('input-text').value;
+            if (!text.trim()) {
+                alert('Please enter obfuscated text to decode!');
+                return;
+            }
+            let decoded = text;
+            // Remove quotes
+            decoded = decoded.replace(/"([^"]*)"/g, '$1');
+            // Remove emojis
+            emojis.forEach(e => { decoded = decoded.split(e).join(''); });
+            // Fix punctuation
+            decoded = decoded.replace(/[!?]+/g, '.');
+            // Fix capitalization for sentence starts
+            decoded = decoded.toLowerCase().replace(/(^\w|\.\s+\w)/g, c => c.toUpperCase());
+            // Reverse common word substitutions
+            const reverseCommon = {};
+            Object.entries(commonWords).forEach(([orig, subs]) => {
+                subs.forEach(sub => { reverseCommon[sub.toLowerCase()] = orig; });
+            });
+            Object.keys(reverseCommon).forEach(word => {
+                decoded = decoded.replace(new RegExp(`\\b${word}\\b`, 'gi'), reverseCommon[word]);
+            });
+            // Reverse synonym substitutions
+            const reverseSynonyms = {};
+            Object.entries(synonyms).forEach(([orig, subs]) => {
+                subs.forEach(sub => { reverseSynonyms[sub.toLowerCase()] = orig; });
+            });
+            Object.keys(reverseSynonyms).forEach(word => {
+                decoded = decoded.replace(new RegExp(`\\b${word}\\b`, 'gi'), reverseSynonyms[word]);
+            });
+            // Reverse theme-based substitutions
+            Object.entries(themeSubstitutions).forEach(([theme, mapping]) => {
+                Object.entries(mapping).forEach(([orig, subs]) => {
+                    subs.forEach(sub => {
+                        decoded = decoded.replace(new RegExp(`\\b${sub}\\b`, 'gi'), orig);
+                    });
+                });
+            });
+            // Remove fake metadata
+            decoded = decoded.replace(/\s*#\w+.*$/, '');
+            decoded = decoded.replace(/\s*(Author:|By|From:).*$/, '');
+            // Remove signoffs
+            decoded = decoded.replace(/\s*~.*/, '');
+            document.getElementById('output-text').textContent = decoded;
+            document.getElementById('signoff').textContent = '';
+        }
+        function clearAll() {
+            document.getElementById('input-text').value = '';
+            document.getElementById('output-text').textContent = '';
+            document.getElementById('signoff').textContent = '';
+            document.getElementById('word-cloud').innerHTML = '';
+            document.getElementById('word-tally').innerHTML = '';
+        }
+        // UI Controls event listeners
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            document.getElementById('intensity-display').textContent = e.target.value + '%';
+        });
+        const panel = document.querySelector('.control-panel');
+        document.getElementById('transparency').addEventListener('input', (e) => {
+            const val = e.target.value;
+            panel.style.background = `rgba(0, 20, 40, ${(100 - val) / 100})`;
+            document.getElementById('transparency-display').textContent = val + '%';
+        });
+        document.getElementById('blur').addEventListener('input', (e) => {
+            const val = e.target.value;
+            panel.style.backdropFilter = `blur(${val}px)`;
+            panel.style.webkitBackdropFilter = `blur(${val}px)`;
+            document.getElementById('blur-display').textContent = val + 'px';
+        });
+        // Initialize scene and handle window resize
+        initThreeJS();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
