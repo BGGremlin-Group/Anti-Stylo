@@ -1,6 +1,6 @@
 ### ***🛸The BG GREMLIN GROUP ANTI-STYLOMETRY TOOL🛸***
 
-> Offline, browser-based text obfuscation for privacy, and anonymity.
+> Offline, browser-based text obfuscation for privacy, and anonymity. Based on the Alternative Linguistics OD toolkit.
 
 
 ---
